@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis on a Custom Dataset</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #007BFF;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            border-bottom: 2px solid #ccc;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 5px;
+            background-color: #f9f9f9;
+            border-radius: 5px 5px 0 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 2px solid #fff;
+            color: #007BFF;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 0 5px 5px 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            resize: vertical;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border: 1px solid #007BFF;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result-container {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007BFF;
+        }
+
+        .result-label {
+            margin-right: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .language-selector {
+            float: right;
+            margin-top: 10px;
+        }
+
+        select {
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <label for="language-select">Language:</label>
+        <select id="language-select">
+            <option value="en" selected>English</option>
+            <option value="es">Español</option>
+            <option value="it">Italiano</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+        </select>
+    </div>
+
+    <h1 id="page-title">Sentiment Analysis on a Custom Dataset</h1>
+
+    <!-- Tab Headers -->
+    <div class="tabs">
+        <div class="tab active" data-tab="input-tab" id="input-tab-label">Input</div>
+        <div class="tab" data-tab="result-tab" id="result-tab-label">Result</div>
+    </div>
+
+    <!-- Tab Contents -->
+    <div id="input-tab" class="tab-content active">
+        <div>
+            <label for="text-input" id="input-label">Please enter texts (one per line):</label>
+        </div>
+
+        <div>
+            <textarea id="text-input" name="text" maxlength="2000" placeholder="Type your texts here..."></textarea>
+        </div>
+
+        <div>
+            <button id="submit-btn" type="button">Analyze</button>
+        </div>
+    </div>
+
+    <div id="result-tab" class="tab-content">
+        <div class="result-container">
+            <span class="result-label" id="result-label">Analysis:</span>
+            <div id="result-output">No analysis yet.</div>
+        </div>
+        <button id="new-analysis-btn" type="button">New Analysis</button>
+    </div>
+
+    <script>
+        // Tab Switching Logic
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // Language Detection Function (Basic Simulation)
+        function detectLanguage(text) {
+            if (/^[a-zA-Z\s]+$/.test(text)) {
+                return 'en'; // English
+            } else if (/[ñáéíóúü]+/.test(text)) {
+                return 'es'; // Spanish
+            } else if (/[àèéìòù]+/.test(text)) {
+                return 'it'; // Italian
+            } else if (/[éèêëàçùâîôû]+/.test(text)) {
+                return 'fr'; // French
+            } else if (/[äöüß]+/.test(text)) {
+                return 'de'; // German
+            }
+            return 'unknown';
+        }
+        
+// Modified Submit Button Logic
+document.getElementById('submit-btn').addEventListener('click', async function() {
+    const textInput = document.getElementById('text-input').value.trim();
+    const resultOutput = document.getElementById('result-output');
+    const selectedLanguage = document.getElementById('language-select').value;
+
+    if (!textInput) {
+        alert('Please enter some text.');
+        return;
+    }
+
+    const texts = textInput.split('\n').filter(text => text.trim());
+    const invalidTexts = texts.filter(text => detectLanguage(text) !== selectedLanguage);
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch('/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ texts, language: selectedLanguage }),
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch sentiment analysis');
+        }
+
+        const results = await response.json();
+        resultOutput.innerHTML = results.map((result, index) => `
+            <p><strong>Text ${index + 1}:</strong> ${result.text}<br>
+            <strong>Sentiment:</strong> ${result.label}</p>
+        `).join('');
+
+        // Switch to the Result Tab
+        document.querySelector('[data-tab="result-tab"]').classList.add('active');
+        document.getElementById('result-tab').classList.add('active');
+        document.querySelector('[data-tab="input-tab"]').classList.remove('active');
+        document.getElementById('input-tab').classList.remove('active');
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            resultOutput.textContent = 'Request timed out. Please try again.';
+        } else {
+            resultOutput.textContent = `Error: ${error.message}`;
+        }
+        console.error(error);
+    }
+
+});
+
+        // New Analysis Button Logic
+        document.getElementById('new-analysis-btn').addEventListener('click', () => {
+            // Clear input and output
+            document.getElementById('text-input').value = '';
+            document.getElementById('result-output').innerHTML = 'No analysis yet.';
+
+            // Switch back to the Input Tab
+            document.querySelector('[data-tab="input-tab"]').classList.add('active');
+            document.getElementById('input-tab').classList.add('active');
+            document.querySelector('[data-tab="result-tab"]').classList.remove('active');
+            document.getElementById('result-tab').classList.remove('active');
+        });
+    
+    // Translation data
+    const translations = {
+        en: {
+            title: "Sentiment Analysis on a Custom Dataset",
+            inputTab: "Input",
+            resultTab: "Result",
+            inputLabel: "Please enter texts (one per line):",
+            submitButton: "Analyze",
+            resultLabel: "Analysis:",
+            newAnalysisButton: "New Analysis",
+        },
+        es: {
+            title: "Análisis de Sentimientos en un Conjunto de Datos Personalizado",
+            inputTab: "Entrada",
+            resultTab: "Resultado",
+            inputLabel: "Por favor, introduzca textos (uno por línea):",
+            submitButton: "Analizar",
+            resultLabel: "Análisis:",
+            newAnalysisButton: "Nuevo Análisis",
+        },
+        it: {
+            title: "Analisi del Sentimento su un Dataset Personalizzato",
+            inputTab: "Ingresso",
+            resultTab: "Risultato",
+            inputLabel: "Si prega di inserire testi (uno per riga):",
+            submitButton: "Analizza",
+            resultLabel: "Analisi:",
+            newAnalysisButton: "Nuova Analisi",
+        },
+        fr: {
+            title: "Analyse des Sentiments sur un Jeu de Données Personnalisé",
+            inputTab: "Entrée",
+            resultTab: "Résultat",
+            inputLabel: "Veuillez entrer des textes (un par ligne) :",
+            submitButton: "Analyser",
+            resultLabel: "Analyse :",
+            newAnalysisButton: "Nouvelle Analyse",
+        },
+        de: {
+            title: "Stimmungsanalyse auf einem benutzerdefinierten Datensatz",
+            inputTab: "Eingabe",
+            resultTab: "Ergebnis",
+            inputLabel: "Bitte geben Sie Texte ein (jeweils eine Zeile):",
+            submitButton: "Analysieren",
+            resultLabel: "Analyse:",
+            newAnalysisButton: "Neue Analyse",
+        },
+    };
+
+    // Function to update language
+    function updateLanguage(language) {
+        document.getElementById('page-title').textContent = translations[language].title;
+        document.getElementById('input-tab-label').textContent = translations[language].inputTab;
+        document.getElementById('result-tab-label').textContent = translations[language].resultTab;
+        document.getElementById('input-label').textContent = translations[language].inputLabel;
+        document.getElementById('submit-btn').textContent = translations[language].submitButton;
+        document.getElementById('result-label').textContent = translations[language].resultLabel;
+        document.getElementById('new-analysis-btn').textContent = translations[language].newAnalysisButton;
+    }
+
+    // Event listener for language selection
+    document.getElementById('language-select').addEventListener('change', (event) => {
+        const selectedLanguage = event.target.value;
+        updateLanguage(selectedLanguage);
+    });
+
+    // Initialize default language
+    updateLanguage('en');
+    </script>
+    
+</body>
+</html>
